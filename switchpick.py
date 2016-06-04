@@ -1,3 +1,45 @@
+#       SwitchPick for JUNOS
+#           Code by Keller, UW-IT NIM
+#           Config by Norm, UW-IT NIM
+#
+#   A program that can automatically create serial connections and configure Juniper switchboards
+#   This automates the procedure so that configurations can be loaded without touching the CLI.
+#
+#       Requirements:
+#           @ Python 2
+#               * Used because of how byte data types are handled
+#           @ Pyserial
+#               * In CMD: "pip install pyserial"
+#           @ A serial connection to a switchboards
+#               * This is built around serial communication
+#
+#       Functions:
+#           @ Credential Management
+#               * Credentials are automatically loaded, incl. the encrypted password
+#               * Credential management allows you to manually change credentials
+#           @ Configure Switchboards
+#               * Configuration Types:5
+#                   - Priming | general config is loaded automatically onto a switch
+#                   - Custom | user-supplied files are loaded onto a switch
+#               * Configuration Modes:
+#                   - Override | loads .config files with stanza formatting
+#                   - Set | Loads .txt files that were copy/pasted and reformats them
+#           @ Provisioning
+#               * View records of switchboard deployments, incl. name, MAC, IP and Subnet
+#               * Clear records as necessary
+#           @ Generate Logs
+#               * Generates & copies support information to a USB drive (for RMA's) automatically
+#           @ Wipe Settings
+#               * Wiping Modes:
+#                   - Prompt | Clear a switch from a login prompt or while logged in
+#                   - Loader | Clear a switch as it is booting up, no credentials required
+#           @ Power Options
+#               * Options:
+#                   - Shutdown | Perform a graceful shutdown
+#                   - Reboot | Request a reboot
+#
+#
+#
 ################################################################################
 #                                      Imports / Constants
 ################################################################################
@@ -28,41 +70,37 @@ def main():
     while True:
         menu()
         choice = option(0, 6)
+        
         if choice == 0:     #Exit Script
             sys.exit()
-        elif choice == 1:   #Credentials
-            credentials()
-        elif choice == 2:   #Configure
-            print('='*40)
-            print('Not available in the GitHub edition of this program')
-            print('='*40)
-        elif choice == 3:   #Provisioning
-            try:
-                provisioningMenu()
-                choice = option(0, 2)
-                if (choice == 1):
-                    provisioningLog()
-                elif (choice == 2):
-                    clearProvisioningLog()
-            except Exception as reason:
-                print('='*40)
-                print(reason)
-                print('='*40)
-        elif choice == 4:   #Gather logs
-            try:
-                logs()
-            except Exception as reason:
-                print('='*40)
-                print(reason)
-                print('Returning to Menu, please investigate this error')
-                print('='*40)
-        elif choice == 5:   #Wipe
-            wipeMenu()
-            choice = option(0, 2)
-            if (choice != 0):
-                wipe(choice)
-        elif choice == 6:   #Shutdown
-            shutdown()
+        try:
+			if choice == 1:   #Credentials
+				credentials()
+			elif choice == 3:   #Provisioning
+				provisioningMenu()
+				choice = option(0, 2)
+				if (choice == 1):
+					provisioningLog()
+				elif (choice == 2):
+					clearProvisioningLog()
+
+			elif choice == 4:   #Gather logs
+					logs()
+
+			elif choice == 5:   #Wipe
+				wipeMenu()
+				choice = option(0, 2)
+				if (choice != 0):
+					wipe(choice)
+
+			elif choice == 6:   #Shutdown
+				powerMenu()
+				choice = option(0, 2)
+				if (choice != 0):
+					powerOptions(choice)
+                    
+        except Exception as reason:
+            returnException(reason)
 
             
             
@@ -88,16 +126,6 @@ def menu():
     return
     
     
-def configMenu():
-    print('-'*40)
-    print('Switch Config | Process begins at login prompt')
-    print('-'*40)
-    print('\t1) Priming Config')
-    print('\t2) Custom Config')
-    print('='*40)
-    return
-    
-    
 def wipeMenu():
     print('-'*40)
     print('Wipe Settings | Clear secured data / configs')
@@ -107,6 +135,7 @@ def wipeMenu():
     print('* = Loader can only run directly after the switch is turned on')
     print('='*40)
     return
+    
     
 def provisioningMenu():
     print('-'*40)
@@ -118,6 +147,16 @@ def provisioningMenu():
     print('\t1) Read Logs')
     print('\t2) Clear Logs')
     print('='*40)
+    return
+    
+    
+def powerMenu():
+    print('-'*40)
+    print('Power Options | Junipers require graceful shutdowns')
+    print('-'*40)
+    print('\t1) Shutdown (graceful)')
+    print('\t2) Reboot JUNOS')
+    print('-'*40)
     return
 
     
@@ -162,9 +201,9 @@ def credentials():
     global USERNAME, PASSWORD
     USERNAME = raw_input('Username: ').rstrip('\n')
     PASSWORD = raw_input('Password: ').rstrip('\n')
-    return
-   
-   
+    return 
+    
+    
 def provisioningLog():
     print('-'*80)
     file = open(PROVISIONING_LOG, 'r')
@@ -173,12 +212,14 @@ def provisioningLog():
     while (line != ''):
         line = line.replace(',', '').split()
         for i in range(0, len(line)):
+			# line[i] = line[i].rstrip(',')
             returnLine += ('{:20s}'.format(line[i]))
         print(returnLine)
         returnLine = ''
         line = file.readline()
     print('-'*80)
     return
+    
     
 def logs():
     print('-'*40)
@@ -265,14 +306,7 @@ def wipe(choice):
     return
         
 
-def shutdown():
-    print('-'*40)
-    print('Power Options | Junipers require graceful shutdowns')
-    print('-'*40)
-    print('\t1) Shutdown (graceful)')
-    print('\t2) Reboot JUNOS')
-    choice = option(0, 2)
-    print('-'*40)
+def powerOptions(choice):
     if (choice == 0):
         print('Returning to menu.')
     else:
@@ -288,7 +322,7 @@ def shutdown():
     
     
 ################################################################################
-#                                      Tertiary Functions
+#                                      Secondary Functions
 ################################################################################
 
 def loader():
@@ -305,6 +339,7 @@ def loader():
             break
     return
 
+    
 def goToLogin():
     loginPrompt = False
     while loginPrompt != True:
@@ -500,7 +535,7 @@ def fileName():
     
 def appendProvisioningLog(name, mac, ip, sub):
     file = open(PROVISIONING_LOG, 'a')
-    file.write(name + ',' + mac + ',' + ip + ',' + sub + '\n')
+    file.write(name + ', ' + mac + ', ' + ip + ', ' + sub + '\n')
     print('-'*40)
     print('Appended to Provisioning Logs:')
     print('-'*40)
@@ -511,14 +546,22 @@ def appendProvisioningLog(name, mac, ip, sub):
     print('-'*40)
     return
     
+    
 def clearProvisioningLog():
     file = open(PROVISIONING_LOG, 'w')
-    file.write('Switch,MAC,IP,SUB\n')
+    file.write('Switch, MAC, IP, SUB\n')
     print('-'*40)
     print('Provisioning records cleared to default')
     print('-'*40)
     return
 
+    
+def returnException(reason):
+    print('='*40)
+    print(reason)
+    print('Returning to Menu - see cause above')
+    print('='*40)
+    return
     
     
 ################################################################################
@@ -526,3 +569,5 @@ def clearProvisioningLog():
 ################################################################################
 
 main()
+
+
