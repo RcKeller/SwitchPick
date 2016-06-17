@@ -40,8 +40,3 @@ This works really well loaded onto a raspberry pi with a small touchscreen.
     - Options:
         * Shutdown | Perform a graceful shutdown
         * Reboot | Request a reboot
-              
-1. Lists in a list item:
-    - Indented four spaces.
-        * indented eight spaces.
-    - Four spaces again.
