@@ -1,6 +1,0 @@
-setup.py
-switchpick.egg-info/PKG-INFO
-switchpick.egg-info/SOURCES.txt
-switchpick.egg-info/dependency_links.txt
-switchpick.egg-info/requires.txt
-switchpick.egg-info/top_level.txt
