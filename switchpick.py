@@ -1,34 +1,12 @@
 '''
+
     SwitchPick for JUNOS
         Code by Keller, UW-IT NIM
+        Config by Norm, UW-IT NIM
 
 A program that can automatically create serial connections and configure Juniper switchboards
 This automates the procedure so that configurations can be loaded without touching the CLI.
 
-Functions:
-  @ Credential Management
-      * Credentials are automatically loaded, incl. the encrypted password
-      * Credential management allows you to manually change credentials
-  @ Configure Switchboards
-      * Configuration Types:5
-          - Priming | general config is loaded automatically onto a switch
-          - Custom | user-supplied files are loaded onto a switch
-      * Configuration Modes:
-          - Override | loads .config files with stanza formatting
-          - Set | Loads .txt files that were copy/pasted and reformats them
-  @ Provisioning
-      * View records of switchboard deployments, incl. name, MAC, IP and Subnet
-      * Clear records as necessary
-  @ Generate Logs
-      * Generates & copies support information to a USB drive (for RMA's) automatically
-  @ Wipe Settings
-      * Wiping Modes:
-          - Prompt | Clear a switch from a login prompt or while logged in
-          - Loader | Clear a switch as it is booting up, no credentials required
-  @ Power Options
-      * Options:
-          - Shutdown | Perform a graceful shutdown
-          - Reboot | Request a reboot
 '''
 
 
@@ -39,10 +17,6 @@ Functions:
 import serial
 import sys, os
 import time
-
-import Tkinter as tk
-import tkFileDialog
-import tkMessageBox
 
 
 CONSOLE = ''        #Our serial connection will be a global value
@@ -55,7 +29,7 @@ ENCRYPTED_PASSWORD = ''
 
 CREDENTIAL_FILE = os.path.join(os.path.dirname(sys.argv[0]), 'data', 'data.txt')
 GENERAL_CONFIG = os.path.join(os.path.dirname(sys.argv[0]), 'configs', 'prime.config')
-PROVISIONING_LOG = os.path.join(os.path.dirname(sys.argv[0]), 'records', 'provisioning_log.csv')
+PROVISIONING_LOG = os.path.join(os.path.dirname(sys.argv[0]), 'records', 'NIM_log.csv')
 
 
 ################################################################################
@@ -73,53 +47,35 @@ def main():
     while True:
         try:
             menu()
-            choice = option(0, 6)
+            choice = option(0, 5)
         
             #CREDENTIAL MANAGER
             if choice == 1:
                 credentials()
             #CONFIG MENU
             elif choice == 2:
-                configMenu()
-                choice = option(0, 2)
-                #PRIMER
-                if choice == 1:
-                    loadConfig(GENERAL_CONFIG)
-                #CUSTOM
-                elif choice == 2:
-                    file = fileName()
-                    if (file != '') and (file != '.'):
-                        loadConfig(file)
-            #PROVISIONING
-            elif choice == 3:
-                saveFile(PROVISIONING_LOG)
+                loadConfig()
             #GATHER LOGS
-            elif choice == 4:
-                    logs()
+            elif choice == 3:
+                logs()
             #WIPE CONFIGS
-            elif choice == 5:
-                wipeMenu()
-                choice = option(0, 2)
-                if (choice != 0):
-                    wipe(choice)
+            elif choice == 4:
+                wipe()
             #POWER OPTIONS
-            elif choice == 6:
-                powerMenu()
-                choice = option(0, 2)
-                if (choice == 1):
-                    powerOff()
-                elif (choice == 2):
-                    reboot()
+            elif choice == 5:
+                powerOptions()
             #EXIT SENTINEL
             elif choice == 0:
                 sys.exit()
 
         except KeyboardInterrupt:
             #Pressed Ctrl-C to terminate a subprocess
-            print ('\nProcess interupped by keyboard - returning to menu')
+            print ('Process interupped by keyboard - returning to menu')
             continue
         except SystemExit:
             break
+            
+    time.sleep(5)
     return
             
             
@@ -205,65 +161,25 @@ def loadCredentials():
     return
     
     
-    
-################################################################################
-#                                      Interfaces
-################################################################################
-
 def menu():
     '''Display the main menu'''
     print('\n\n')
     print('='*40)
-    print('SwitchPick for JUNOS - Beta v 0.2.8')
+    print('SwitchPick for JUNOS - v 1.2')
     print('\tCode by Keller, UW-IT NIM')
     print(' .'*20)
     print('USER:\t\t' + USERNAME + '\nPASS:\t\t' + ('*' * len(PASSWORD)) + '\nEncryption:\t' + ('Loaded' if str(len(ENCRYPTED_PASSWORD)) > 1 else 'Not loaded'))
     print('='*40)
     print('\t1) Update Credentials')
     print('\t2) Configuration')
-    print('\t3) Provisioning')
-    print('\t4) Generate Logs')
-    print('\t5) Wipe Settings')
-    print('\t6) Power Options')
+    print('\t3) USB Log Grabber')
+    print('\t4) Wipe Settings')
+    print('\t5) Power Options')
     print('='*40)
     return
     
     
-def configMenu():
-    '''Displays config options'''
-    print('-'*40)
-    print('Switch Config | Process begins at login prompt')
-    print(' .'*20)
-    print('\t1) Priming Config')
-    print('\t2) Custom Config')
-    print('-'*40)
-    return
     
-
-def wipeMenu():
-    '''Choose a switch state-of-operation to begin a wipe'''
-    print('-'*40)
-    print('Wipe Settings | Clear secured data / configs')
-    print(' .'*20)
-    print('\t1) Wipe w/ login')
-    print('\t2) Wipe w/ override loader*')
-    print('* = Loader can only run directly after the switch is turned on')
-    print('-'*40)
-    return
-    
-    
-def powerMenu():
-    '''Choose a shutdown option'''
-    print('-'*40)
-    print('Power Options | Junipers require graceful shutdowns')
-    print(' .'*20)
-    print('\t1) Shutdown (graceful)')
-    print('\t2) Reboot JUNOS')
-    print('-'*40)
-    return
-
-    
-
 ################################################################################
 #                                      Primary Operations
 ################################################################################
@@ -277,10 +193,11 @@ def credentials():
     USERNAME = raw_input('Username: ').rstrip('\n')
     PASSWORD = raw_input('Password: ').rstrip('\n')
     print('-'*40)
+    
     return
     
 
-def loadConfig(configFile):
+def loadConfig():
     '''
     Load a config file, formatting as necessary
     Console in, configure and commit encrypted credentials
@@ -288,19 +205,37 @@ def loadConfig(configFile):
     Clone configs to rescue files    
     '''
     print('-'*40)
-    print('Loading Config:\n' + configFile)
+    print('Switch Config | Load a config/txt and commit changes')
+    print(' .'*20)
+    print('\t1) Priming Config')
+    print('\t2) Custom Config')
     print('-'*40)
+    
+    choice = option(0, 2)
+    if choice == 1:
+        configFile = GENERAL_CONFIG
+    elif choice == 2:
+        configFile = fileName()
+        if (configFile == ''):
+            raise Exception('No file specified')
+            
+    print('-'*50)
+    print('Loading Config:\n' + configFile)
+    print('-'*50)
     
     try:
     
         if (ENCRYPTED_PASSWORD == ''):
             raise Exception('Fatal Error - no encryption password or hash loaded in data.txt')
-        '''There are two kinds of config files that go through different processes:
+        '''
+        There are two kinds of config files that go through different processes:
             .config / "Stanza" | Must load with override terminal, no formatting
-            .txt / "Excel configs" | Must load with set terminal, program will format before writing'''
+            .txt / "Excel configs" | Must load with set terminal, program will format before writing
+        '''
         terminalType = 'set' if (configFile[-4:] == '.txt') else 'override'
         
         #Navigate to config, loop until the session is stable
+        checkActivity()
         goToLogin()
         login()
         cli()
@@ -308,12 +243,12 @@ def loadConfig(configFile):
 
         #Commit a password - first step for security purposes
         command('#', 'load factory-default', '\nLoading Factory Settings...')
-        command('#', ('set system root-authentication encrypted-password ' + ENCRYPTED_PASSWORD), '\tSetting Encrypted Root Password...', False)
+        command('#', ('set system root-authentication encrypted-password ' + ENCRYPTED_PASSWORD), '\tSetting Encrypted Root Password...')
         command('#', 'commit comment "loading factory-default"', 'Committing Initial Password...', False)
         if goodCommit() != True:
             return
         print('Encrypted login credentials commited.')
-            
+        
         #Load a terminal and apply bulk configurations
         command('#', ('load '+terminalType+' terminal'),
             ('\nOpening '+terminalType+' terminal...'))
@@ -322,17 +257,17 @@ def loadConfig(configFile):
         if (terminalType == 'set'):
             configData = configData.format(r'\r\n\\')   #Format with raw newlines
         try:
-            time.sleep(0.2)   #Configs can be 1K lines, interpreter needs a moment to process
-            print('\tLoading configs (1 minute)...')
+            time.sleep(5)   #Configs can be 1K lines, interpreter needs a moment to process
+            print('\tLoading configs (2 minutes)...')
             CONSOLE.write(configData)   #Takes a bit
-            time.sleep(0.2)
+            time.sleep(5)
             print('\tConfigs loaded to terminal.')
         except:
             print('Error: Unable to write config data to console.')
         r.close()
         #Write a raw newline & the hex code for CTRL-D
         command('', '\r\n\x04', 'Closing terminal', True, False)
-        time.sleep(1)   #Time MUST pass for this to process
+        time.sleep(5)   #Time MUST pass for this to process
         #Commit and copy config
         command('#', 'commit and-quit', 'Committing loaded configs...', False)
         if goodCommit() != True:
@@ -342,8 +277,8 @@ def loadConfig(configFile):
         
         time.sleep(5)   #Let the system grab an available IP
         gatherProvisioningInfo(configFile)
+        
         print('Config complete!')
-        powerOff()
     
     except Exception as reason:
         returnException(reason)
@@ -358,6 +293,7 @@ def logs():
     
     try:
     
+        checkActivity()
         goToLogin()
         login()
         cli()
@@ -401,13 +337,25 @@ def logs():
     return
 
     
-def wipe(choice):
+def wipe():
     '''Clear a switch without zeroize, thus retaining long-term support/operational data'''
     print('-'*40)
-    print('Clean Config Wipe | Retains System Logs')
+    print('Wipe Settings | Clear secured data / configs')
+    print(' .'*20)
+    print('\t1) Wipe w/ login')
+    print('\t2) Wipe w/ override loader*')
+    print('* = Loader can only run directly after the switch is turned on')
+    print('-'*40)
+    
+    choice = option(0, 2)
+    if (choice == 0):
+        return
+    
     print('-'*40)
     
     try:
+        
+        checkActivity()
         
         #Start a shell session
         if (choice == 1): #From login screen
@@ -429,33 +377,37 @@ def wipe(choice):
         command('%', 'rm juniper.db', '\tRemoving: juniper.db')
         command('%', 'rm juniper.data', '\tRemoving: juniper.data')
         command('%', 'rm juniper.save', '\tRemoving: juniper.save')
-        print('Wipe complete!')
         
-        print('-'*40 + '\nWipe complete!' + '-'*40)
-        reboot()
+        print('Wipe complete!')
         
     except Exception as reason:
         returnException(reason)
     return
         
 
-def powerOptions(choice):
+def powerOptions():
     '''Graceful shutdown options for a switch, prevents error/event logging'''
     print('-'*40)
-    if (choice == 0):
-        print('Returning to menu.')
-    else:
-        try:
-            goToLogin()
-            login()
-            cli()
+    print('Power Options | Junipers require graceful shutdowns')
+    print(' .'*20)
+    print('\t1) Shutdown (graceful)')
+    print('\t2) Reboot JUNOS')
+    print('-'*40)
+    choice = option(0, 2)
+    print('-'*40)
+    try:
+        if (choice == 0):
+            print('Returning to menu.')
+            return
+        else:
+            checkActivity()
             if (choice == 1):
                 powerOff()
-            elif (choice == 2):
+            else:
                 reboot()
         
-        except Exception as reason:
-            returnException(reason)
+    except Exception as reason:
+        returnException(reason)
     return
     
     
@@ -480,24 +432,48 @@ def loader():
     return
 
     
+def checkActivity():
+    '''Ensure a switch is active / console I/O is currently working'''
+    print('Verifying console device is active...')
+    for i in range(10):        
+        response = readSerial()
+        if (response != ''):
+            return
+        else:
+            CONSOLE.write('\n')
+            time.sleep(0.5)
+            
+    raise Exception('No activity or response from console device')
+    return
+    
+    
 def goToLogin():
     '''Exit out of all prompts until the login screen is reached'''
-    loginPrompt = False
-    while loginPrompt != True:
+    print('Reaching login(can take 2-3 minutes)')
+    CONSOLE.write('\n')
+    while True:
+        time.sleep(1)
         prompt = readSerial()
         if ('login:' in prompt):
-            loginPrompt = True
+            break
         elif ('[yes,no]' in prompt):    #Interrupt any commits
             CONSOLE.write('yes' + '\n')
-            time.sleep(0.2)
-        else:
+        elif ('#' in prompt):
+            CONSOLE.write(('exit' + '\n')*4)
+        elif ('}' in prompt):
+            CONSOLE.write(('exit' + '\n')*2)
+        elif ('%' in prompt):
             CONSOLE.write('exit' + '\n')
-            time.sleep(0.2)
+        else:
+            CONSOLE.write('\n')
+            time.sleep(14)
+            print('...')
     return
     
     
 def login():
     '''Login to a switch, raise an exception if necessary'''
+    print('Attempting login...')
     command('login:', USERNAME, 'Logging in...')
     while True:
         time.sleep(0.5)
@@ -505,11 +481,10 @@ def login():
         #Password and Local Password are always the same, this statement covers both:
         if ('word:' in prompt):
             CONSOLE.write(PASSWORD + '\n')
-            print('Entered password: ' + ('*' * len(PASSWORD)))
         elif ('login' in prompt):       #Username was refused and re-prompted
-            raise Exception('Fatal error - wrong username. Please update your credentials.')
+            raise Exception('Fatal error - wrong username')
         elif ('incorrect' in prompt):   #Incorrect password
-            raise Exception('Fatal error - wrong password. Please update your credentials.')
+            raise Exception('Fatal error - wrong password')
         elif ('JUNOS' in prompt) or ('%' in prompt):
             print('Logged in as ' + USERNAME + '; ' + ('*' * len(PASSWORD)) + '\n')
             break
@@ -531,8 +506,8 @@ def config():
     40% of the time within the first 5 seconds. Hence why we sleep for 15 seconds.
     '''
     while True:
-        command('}', 'configure', 'Entering config mode, verifying stable session...')
-        time.sleep(15)  #Wait and see if the system or autoupdate terminated config mode.
+        command('}', 'configure', 'Entering config mode, verifying stable session... (30 secs)')
+        time.sleep(30)  #Wait and see if the system or autoupdate terminated config mode.
         if ('unexpectedly closed connection' not in readSerial()):
             print('Config mode enabled, steady.')
             break
@@ -563,7 +538,7 @@ def gatherProvisioningInfo(configFile):
     '''
     #Grab model/serial via chassis hardware
     command('}', 'show chassis hardware | match chassis', '\nReviewing model information...')
-    time.sleep(1)
+    time.sleep(5)
     chassis = readSerial().split()
     model = 'N/A'
     serial = 'N/A'
@@ -580,7 +555,7 @@ def gatherProvisioningInfo(configFile):
     
     #Grab mac address from current interface
     command('}', 'show interfaces vlan | find Current', 'Checking for MAC address...')
-    time.sleep(1)
+    time.sleep(5)
     current = readSerial().split()
     mac = 'N/A'
     try:
@@ -592,7 +567,7 @@ def gatherProvisioningInfo(configFile):
                 
     #Grab IP/SUB from interface destinations
     command('}', 'show interfaces vlan | find Destination', 'Checking for IP/SUB...')
-    time.sleep(1)
+    time.sleep(5)
     destination = readSerial().split()
     ip = 'N/A'
     sub = 'N/A'
@@ -605,27 +580,32 @@ def gatherProvisioningInfo(configFile):
         pass
         
     #Append all these to a CSV file
-    appendProvisioningLog(  model, serial, name, mac, ip, sub)
+    appendProvisioningLog(model, serial, name, mac, ip, sub)
     return
 
 
 def powerOff():
     '''Shutdown loop that prints "..." when powering off (so user knows the code has not frozen)'''    
     try:
-        root = tk.Tk()
-        root.withdraw()
-        option = tkMessageBox.askquestion("Shutdown", "Perform a graceful shutdown? (takes 2 minutes)", icon='warning')
-        root.destroy()
-        if (option != 'yes'):
+        print('-'*40)
+        print('Shutdown | Confirm Shutdown')
+        print(' .'*20)
+        print('\t1) Return to Menu')
+        print('\t2) Shutdown Switch (2 min)')
+        print('-'*40)
+        choice = option(0, 2)
+        if (choice == 1):
             return
             
         print('-'*40)
         print('Graceful Shutdown (2-3 minutes)')
         print('-'*40)
+        
         goToLogin()
         login()
         cli()
         command('}', 'request system power-off\nyes\n', 'Requested shutdown (3 minutes)...', True, False)
+        
         while True:
             time.sleep(15)
             print('...')
@@ -633,6 +613,7 @@ def powerOff():
                 print('System shutdown complete.')
                 print('It is safe to unplug the Juniper')
                 break
+                
     except Exception as reason:
         returnException(reason)
     return
@@ -641,26 +622,32 @@ def powerOff():
 def reboot():
     '''Reboot a switch, and wait for it to return to login prompt'''
     try:
-        root = tk.Tk()
-        root.withdraw()
-        option = tkMessageBox.askquestion("Reboot", "Reboot? (takes 4 minutes)", icon='warning')
-        root.destroy()
-        if (option != 'yes'):
+        print('-'*40)
+        print('Reboot | Confirm Reboot')
+        print(' .'*20)
+        print('\t1) Return to Menu')
+        print('\t2) Reboot Switch (4 min)')
+        print('-'*40)
+        choice = option(0, 2)
+        if (choice == 1):
             return
-        
+            
         print('-'*40)
         print('Graceful Reboot (4 minutes)')
         print('-'*40)
+        
         goToLogin()
         login()
         cli()
         command('}', 'request system reboot\nyes\n', 'Rebooting (3-4 minutes)...', True, False)
+        
         while True:
             time.sleep(15)
             print('...')
             if ('login:' in readSerial()):
                 print('Reboot complete, reached login prompt')
                 break
+                
     except Exception as reason:
         returnException(reason)
     return
@@ -676,48 +663,28 @@ def fileName():
     Open a file browsing prompt using tKinter, user specifies a file
     Return a blank file if user cancels or specifies an invalid file
     '''
-    try:
-        init = tk.Tk()
-        init.withdraw()
-        name = tkFileDialog.askopenfilename()
-        if (name == '.') or (name == ''):
-            raise Exception('No file specified.')
-        r = open(name, 'r')
-        data = r.read()
-        if data == '':
-            raise Exception('No data contained in: ' + name)
-        r.close()
-        return name
-    except Exception as reason:
-        returnException(reason)
-    return
+    while True:
+        try:
+            name = str(raw_input('File Name >    ')).rstrip('\r\n')
+            if (name == '.') or (name == '') or (name == '0'):
+                raise Exception('No file specified.')
+                
+            if (not name.endswith('.txt')) and (not name.endswith('.config')):
+                name = (name + '.txt')
+            if ('/' not in name) or ('\\' not in name):
+                name = os.path.join(os.path.dirname(sys.argv[0]), name)
+                
+            r = open(name, 'r')
+            data = r.read()
+            if data == '':
+                raise Exception('No data contained in: ' + name)
+            return name
+            
+        except Exception as e:
+            print(e)
+            print('An error occured - enter a different name:')
+    return ''
 
-
-def saveFile(source):
-    '''
-    Saves a source file to a user specified location.
-    '''
-    try:
-        r = open(source, 'r')
-        data = r.read()
-        if data == '':
-            raise Exception('No data contained in: ' + source)
-        r.close()
-    
-        init = tk.Tk()
-        init.withdraw()
-        dest = tkFileDialog.asksaveasfile(mode='w', defaultextension=".txt")
-        if (type(dest) != file):
-            raise Exception('No file specified.')
-        else:
-            dest.write(data)
-            dest.close()
-            print('File exported successfully!')
-        
-    except Exception as reason:
-        returnException(reason)
-    return
-    
     
 def appendProvisioningLog(model, serial, config, mac, ip, sub):
     '''Add an entry to provisioning logs'''
@@ -742,39 +709,8 @@ def clearProvisioningLog():
     file = open(PROVISIONING_LOG, 'w')
     file.write('Model, Serial, Config, MAC, IP, SUB\n')
     file.close()
-    print('-'*40)
     print('Provisioning records cleared to default')
     print('-'*40)
-    return
-    
-    
-
-################################################################################
-#                                      Tertiary Operations
-################################################################################
-
-def option(low, high):
-    '''Loops until valid menu options are selected'''
-    while True:
-        try:
-            option = int(input('Option >    '))
-            if (option >= low) and (option <= high):
-                break
-            else:
-                print('Option must be between ' + low + '-' + high)
-        except KeyboardInterrupt as reason:
-            sys.exit()
-        except:
-            print('Option not accepted')
-    return option
-
-    
-def returnException(reason):
-    '''Formatting for returning an exception'''
-    print('='*40)
-    print(reason)
-    print('Returning to Menu - see cause above')
-    print('='*40)
     return
     
     
@@ -813,6 +749,36 @@ def command(condition, command, reaction='', pullPrompt=True, newLine=True):
             CONSOLE.write(command + ('\n' if newLine else ''))
             print(reaction)
             break
+    return
+    
+    
+    
+################################################################################
+#                                      Tertiary Operations
+################################################################################
+
+def option(low, high):
+    '''Loops until valid menu options are selected'''
+    while True:
+        try:
+            option = int(input('Option >    '))
+            if (option >= low) and (option <= high):
+                break
+            else:
+                print('Option must be between ' + low + '-' + high)
+        except KeyboardInterrupt as reason:
+            sys.exit()
+        except:
+            print('Option not accepted')
+    return option
+
+    
+def returnException(reason):
+    '''Formatting for returning an exception'''
+    print('='*40)
+    print(reason)
+    print('Returning to Menu - see cause above')
+    print('='*40)
     return
     
     
