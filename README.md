@@ -4,10 +4,8 @@
 A Python software package that can automatically crack, wipe, configure, gather data and record deployments for any Juniper EX network switchboard using a physical connection.
 
 ##### Requires:
- - Python 2.7
- - pyserial(any)
- - A physical serial connection to a Juniper switch
-
+ - Ability to run /dist/switchpick.exe
+ - A physical serial connection
  
 This program started as a way for me (Keller, UW-IT NIM) to automate my job (network engineering, clearing and loading base configurations onto switches) and has evolved into a solution for what you could call "one-touch" provisioning - loading a config file on a switch prior to deployment with a click of a button.
 Or, in this distribution, two keystrokes. The advantage of this program is it allows us to configure switches without a high-level understanding of what is being done, making it possible to delegate and semi-automate complex tasks.
