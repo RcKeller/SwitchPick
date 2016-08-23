@@ -1,8 +1,7 @@
 '''
 
     SwitchPick for JUNOS
-        Code by Keller, UW-IT NIM
-        Config by Norm, UW-IT NIM
+        by Ryan Keller (RcKeller.Github.IO)
 
 A program that can automatically create serial connections and configure Juniper switchboards
 This automates the procedure so that configurations can be loaded without touching the CLI.
@@ -27,9 +26,9 @@ USERNAME = ''
 PASSWORD = ''
 ENCRYPTED_PASSWORD = ''
 
-CREDENTIAL_FILE = os.path.join(os.path.dirname(sys.argv[0]), 'data', 'data.txt')
-GENERAL_CONFIG = os.path.join(os.path.dirname(sys.argv[0]), 'configs', 'prime.config')
-PROVISIONING_LOG = os.path.join(os.path.dirname(sys.argv[0]), 'records', 'NIM_log.csv')
+CREDENTIAL_FILE = os.path.join(os.path.dirname(sys.argv[0]), 'assets', 'credentials.txt')
+GENERAL_CONFIG = os.path.join(os.path.dirname(sys.argv[0]), 'assets', 'prime.config')
+PROVISIONING_LOG = os.path.join(os.path.dirname(sys.argv[0]), 'assets', 'deployments.csv')
 
 
 ################################################################################
@@ -166,7 +165,7 @@ def menu():
     print('\n\n')
     print('='*40)
     print('SwitchPick for JUNOS - v 1.2')
-    print('\tCode by Keller, UW-IT NIM')
+    print('\tCode by Ryan Keller')
     print(' .'*20)
     print('USER:\t\t' + USERNAME + '\nPASS:\t\t' + ('*' * len(PASSWORD)) + '\nEncryption:\t' + ('Loaded' if str(len(ENCRYPTED_PASSWORD)) > 1 else 'Not loaded'))
     print('='*40)
@@ -226,7 +225,7 @@ def loadConfig():
     try:
     
         if (ENCRYPTED_PASSWORD == ''):
-            raise Exception('Fatal Error - no encryption password or hash loaded in data.txt')
+            raise Exception('Fatal Error - no encryption password or hash loaded in credentials.txt')
         '''
         There are two kinds of config files that go through different processes:
             .config / "Stanza" | Must load with override terminal, no formatting

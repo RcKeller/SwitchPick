@@ -5,7 +5,7 @@ A Python software package that can automatically crack, wipe, configure, gather 
 
 ##### Requires:
  - Python 2.7
- - pyserial(any)
+ - pyserial (any version)
  - A physical serial connection to a Juniper switch
 
  
